@@ -390,6 +390,26 @@ img, video, canvas, svg { max-width: 100%; }
   outline: none; border-color: rgba(255,255,255,0.40);
   box-shadow: 0 0 0 3px rgba(255,255,255,0.06);
 }
+/* ----- Workout plan ----- */
+.po-plan-textarea {
+  width: 100%; min-height: 160px; resize: vertical;
+  padding: 14px; border: 1px solid var(--border);
+  background: rgba(0,0,0,0.28); color: var(--text-1);
+  border-radius: 12px; font-family: inherit; font-size: 14px;
+  line-height: 1.6; -webkit-appearance: none;
+}
+.po-plan-textarea::placeholder { color: var(--text-3); }
+.po-plan-textarea:focus {
+  outline: none; border-color: rgba(255,255,255,0.40);
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.06);
+}
+.po-plan-foot {
+  display: flex; align-items: center; gap: 12px; margin-top: 10px;
+}
+.po-plan-saved {
+  font-size: 11.5px; color: var(--good); opacity: 0; transition: opacity 0.3s;
+}
+.po-plan-saved.show { opacity: 1; }
 .po-weight-row {
   display: grid; grid-template-columns: auto 1fr auto; gap: 6px; align-items: stretch;
 }
@@ -1437,6 +1457,15 @@ img, video, canvas, svg { max-width: 100%; }
     <button class="po-icon-btn" id="settingsBtn" title="Settings" aria-label="Settings">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     </button>
+  </div>
+
+  <div class="card">
+    <div class="po-sub-title">Workout Plan</div>
+    <textarea class="po-plan-textarea" id="workoutPlanText" placeholder="Write your split, sets/reps targets, or any notes here — e.g.&#10;Mon: Push (chest/shoulders/triceps)&#10;Wed: Pull (back/biceps)&#10;Fri: Legs"></textarea>
+    <div class="po-plan-foot">
+      <button class="po-btn-secondary" id="savePlanBtn" type="button">Save Plan</button>
+      <span class="po-plan-saved" id="planSavedMsg">Saved ✓</span>
+    </div>
   </div>
 
   <div class="card">
@@ -3278,6 +3307,20 @@ img, video, canvas, svg { max-width: 100%; }
   $('wtCmpSideB').addEventListener('click', cycleCompareTarget);
 
   // ============================================================
+  // WORKOUT PLAN — a free-text note synced like everything else
+  // ============================================================
+  (function initWorkoutPlan() {
+    const planEl = $('workoutPlanText');
+    const savedMsg = $('planSavedMsg');
+    try { planEl.value = JSON.parse(localStorage.getItem('po_coach_plan') || '""') || ''; } catch (e) {}
+    $('savePlanBtn').addEventListener('click', () => {
+      try { localStorage.setItem('po_coach_plan', JSON.stringify(planEl.value)); } catch (e) {}
+      savedMsg.classList.add('show');
+      setTimeout(() => savedMsg.classList.remove('show'), 1600);
+    });
+  })();
+
+  // ============================================================
   // BOOT
   // ============================================================
   renderAll();
@@ -3305,7 +3348,7 @@ img, video, canvas, svg { max-width: 100%; }
   const SUPABASE_URL = 'https://qxayontnaamtxdikccdp.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_-iXPGu7KShKBqw1-72ysaw_r9u4W_dJ';
   const APP_KEY = 'po-coach';
-  const PC_SYNCED_KEYS = ['po_coach_v1', 'po_coach_workout_done', 'po_coach_weights', 'po_coach_photos'];
+  const PC_SYNCED_KEYS = ['po_coach_v1', 'po_coach_workout_done', 'po_coach_weights', 'po_coach_photos', 'po_coach_plan'];
 
   let pcSupa = null;
   let pcPushTimer = null;
@@ -3372,6 +3415,10 @@ img, video, canvas, svg { max-width: 100%; }
     try { renderAll(); } catch {}
     try { wtRender(); } catch {}
     try { photosRender(); } catch {}
+    try {
+      const planEl = document.getElementById('workoutPlanText');
+      if (planEl) planEl.value = JSON.parse(localStorage.getItem('po_coach_plan') || '""') || '';
+    } catch {}
   }
 
   function pcApplyRemoteState(remote) {
