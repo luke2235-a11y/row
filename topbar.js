@@ -18,13 +18,14 @@
   const css = `
 .topbar {
   position: sticky; top: 0; z-index: 40;
-  display: flex; justify-content: flex-end; align-items: center;
+  display: flex; justify-content: space-between; align-items: center;
   gap: 8px;
   padding: max(10px, env(safe-area-inset-top)) 14px 8px;
   background: #0a0a0b;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
 }
+.topbar-right-group { display: flex; align-items: stretch; gap: 8px; }
 .topbar-water-wrap { display: flex; align-items: stretch; }
 .topbar-water-pill {
   display: inline-flex; align-items: center; gap: 8px;
@@ -68,7 +69,7 @@
 .topbar-water-add.flash {
   background: linear-gradient(180deg, rgba(125, 211, 252, 0.7), rgba(110, 231, 183, 0.7));
 }
-.topbar-finance-btn {
+.topbar-icon-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 44px; height: 42px;
   border: 1px solid rgba(255, 255, 255, 0.10);
@@ -77,7 +78,7 @@
   -webkit-tap-highlight-color: transparent;
   transition: background 0.15s;
 }
-.topbar-finance-btn:hover { background: rgba(255, 255, 255, 0.08); }
+.topbar-icon-btn:hover { background: rgba(255, 255, 255, 0.08); }
 .topbar-finance-icon {
   font-size: 20px; line-height: 1;
   filter: grayscale(100%) brightness(1.4); opacity: 0.85;
@@ -116,7 +117,7 @@ body.has-bottombar {
   .topbar-water-pill { padding: 8px 11px; gap: 6px; }
   .topbar-pill-count { font-size: 12px; }
   .topbar-water-add { width: 40px; font-size: 18px; }
-  .topbar-finance-btn { width: 40px; height: 38px; }
+  .topbar-icon-btn { width: 40px; height: 38px; }
   .topbar-finance-icon { font-size: 18px; }
   .bottombar-tab-icon { font-size: 22px; }
   .bottombar-tab { font-size: 10px; }
@@ -150,16 +151,21 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
 
   const topbarHtml = `
 <header class="topbar" id="topbar" role="navigation" aria-label="Quick actions">
-  <div class="topbar-water-wrap">
-    <a href="health.html#water" class="topbar-water-pill" id="topbarWater" aria-label="Water progress">
-      <span class="topbar-pill-dot"></span>
-      <span class="topbar-pill-count" id="topbarWaterCount">0/0</span>
-    </a>
-    <button class="topbar-water-add" id="topbarWaterAdd" aria-label="Log one drink" type="button">+</button>
-  </div>
-  <a href="finance.html" class="topbar-finance-btn" id="topbarFinance" aria-label="Finance">
-    <span class="topbar-finance-icon">📊</span>
+  <a href="index.html" class="topbar-icon-btn" id="topbarHome" aria-label="Home">
+    <span class="topbar-finance-icon">🏠</span>
   </a>
+  <div class="topbar-right-group">
+    <div class="topbar-water-wrap">
+      <a href="health.html#water" class="topbar-water-pill" id="topbarWater" aria-label="Water progress">
+        <span class="topbar-pill-dot"></span>
+        <span class="topbar-pill-count" id="topbarWaterCount">0/0</span>
+      </a>
+      <button class="topbar-water-add" id="topbarWaterAdd" aria-label="Log one drink" type="button">+</button>
+    </div>
+    <a href="finance.html" class="topbar-icon-btn" id="topbarFinance" aria-label="Finance">
+      <span class="topbar-finance-icon">📊</span>
+    </a>
+  </div>
 </header>`;
 
   const bottombarHtml = `
@@ -182,6 +188,10 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
   function isEmbedded() {
     try { return window.self !== window.top; } catch (e) { return true; }
   }
+  function isHubPage() {
+    const p = (window.location.pathname || '').toLowerCase();
+    return p.endsWith('/index.html') || p.endsWith('index.html') || p === '/' || p.endsWith('/');
+  }
   function shouldShowChrome() { return !isFinancePage() && !isEmbedded(); }
   function currentPageKey() {
     const p = (window.location.pathname || '').toLowerCase();
@@ -201,6 +211,10 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     const topWrap = document.createElement('div');
     topWrap.innerHTML = topbarHtml.trim();
     document.body.insertBefore(topWrap.firstChild, document.body.firstChild);
+    if (isHubPage()) {
+      const homeBtn = document.getElementById('topbarHome');
+      if (homeBtn) homeBtn.style.display = 'none';
+    }
     const bottomWrap = document.createElement('div');
     bottomWrap.innerHTML = bottombarHtml.trim();
     document.body.appendChild(bottomWrap.firstChild);
