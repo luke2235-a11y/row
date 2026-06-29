@@ -160,5 +160,6 @@ window.MEALS_SUBSTITUTES = {
 window.MEALS_SUPERMARKETS = {
   aldi:{ label:"Aldi", mult:0.85 }, lidl:{ label:"Lidl", mult:0.85 },
   tesco:{ label:"Tesco", mult:1.00 }, asda:{ label:"Asda", mult:0.95 },
-  sainsburys:{ label:"Sainsbury's", mult:1.10 }
+  sainsburys:{ label:"Sainsbury's", mult:1.10 },
+  rewe:{ label:"REWE", mult:1.05 }, netto:{ label:"Netto", mult:0.85 }
 };
