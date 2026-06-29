@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#050506">
+<title>Meal Planner · Dashboard</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="sync.js" defer></script>
+<script src="topbar.js" defer></script>
+
+<style>
+:root {
+  --text-primary:#FAFAFA; --text-secondary:#B8B6B0; --text-tertiary:#76746E;
+  --success:#6BE3A4; --warning:#F2C063; --danger:#FF6B6B;
+  --font:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --font-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; padding:0; background:#050506; color:var(--text-secondary); font-family:var(--font); -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; -webkit-text-size-adjust:100%; }
+body { min-height:100vh; position:relative; overflow-x:hidden; padding:max(28px,env(safe-area-inset-top)) 20px 60px; }
+body::before { content:''; position:fixed; inset:0; background:radial-gradient(circle at 82% 14%,rgba(224,118,88,0.16),transparent 45%),radial-gradient(circle at 18% 90%,rgba(180,180,200,0.06),transparent 50%); filter:blur(40px); pointer-events:none; z-index:-2; animation:drift 36s ease-in-out infinite alternate; }
+body::after { content:''; position:fixed; inset:0; background-image:radial-gradient(rgba(255,255,255,0.014) 1px,transparent 1px); background-size:3px 3px; pointer-events:none; z-index:-1; }
+@keyframes drift { 0%{transform:translate3d(0,0,0);} 100%{transform:translate3d(-22px,14px,0);} }
+.page { max-width:1100px; margin:0 auto; }
+.dash-title { margin:0 0 14px; font-size:28px; font-weight:700; letter-spacing:-0.025em; background:linear-gradient(180deg,#FFFFFF 0%,#C7C4BC 120%); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent; }
+@media (max-width:480px) { .dash-title { font-size:22px; } }
+.section { margin-top:8px; }
+.section-title { font-size:10.5px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:var(--text-tertiary); display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+.section-title::before { content:''; width:18px; height:1px; background:var(--text-tertiary); opacity:0.6; }
+.section-title::after { content:''; flex:1; height:1px; background:linear-gradient(90deg,rgba(255,255,255,0.08),transparent); }
+.gm-card { position:relative; background:rgba(255,255,255,0.04); border-radius:16px; padding:20px; margin-bottom:14px; backdrop-filter:blur(24px) saturate(1.2); -webkit-backdrop-filter:blur(24px) saturate(1.2); box-shadow:0 12px 40px rgba(0,0,0,0.45); overflow:hidden; }
+.gm-header { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:14px; }
+.gm-header-left { display:flex; flex-direction:column; }
+.gm-eyebrow { font-size:10.5px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:var(--text-tertiary); margin-bottom:6px; }
+.gm-progress-row { display:flex; align-items:baseline; gap:6px; }
+.gm-progress-num { font-size:42px; font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:-0.045em; color:var(--text-primary); line-height:1; }
+.gm-progress-total { font-family:var(--font-mono); font-size:18px; color:var(--text-tertiary); }
+.gm-progress-label { font-size:11px; font-weight:600; letter-spacing:0.10em; text-transform:uppercase; color:var(--text-tertiary); margin-left:4px; }
+.gm-streak { display:inline-flex; align-items:center; gap:6px; padding:8px 12px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); color:var(--text-tertiary); font-size:11px; font-weight:600; letter-spacing:0.10em; text-transform:uppercase; }
+.stat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:12px; }
+.stat { background:rgba(255,255,255,0.035); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:14px; }
+.stat-num { font-size:26px; font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:-0.03em; color:var(--text-primary); line-height:1; }
+.stat-label { margin-top:6px; font-size:10.5px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-tertiary); }
+.gm-row { display:flex; align-items:center; gap:12px; padding:12px 14px; margin-bottom:6px; background:rgba(255,255,255,0.035); border:1px solid rgba(255,255,255,0.06); border-radius:12px; }
+.gm-row:hover { background:rgba(255,255,255,0.06); }
+.gm-text { flex:1; font-size:14px; color:var(--text-primary); min-width:0; }
+.gm-text small { display:block; margin-top:2px; font-size:11.5px; color:var(--text-tertiary); }
+.goal-delete { border:0; background:transparent; color:var(--text-tertiary); font-size:18px; cursor:pointer; padding:0 4px; flex-shrink:0; opacity:0.5; transition:opacity .2s,color .2s; }
+.gm-row:hover .goal-delete { opacity:1; }
+.goal-delete:hover { color:var(--danger); }
+.empty-state { text-align:center; font-size:12px; font-style:italic; color:var(--text-tertiary); padding:14px 0; }
+.gm-input-wrap { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:14px; padding-top:14px; border-top:1px solid rgba(255,255,255,0.06); }
+.gm-input,.nut-num,.nut-select { flex:1; min-width:0; padding:11px 14px; border:1px solid rgba(255,255,255,0.08); border-radius:12px; background:rgba(0,0,0,0.28); color:var(--text-primary); font-family:inherit; font-size:14px; outline:none; }
+.gm-input::placeholder,.nut-num::placeholder { color:var(--text-tertiary); }
+.gm-add { padding:11px 20px; border:0; border-radius:12px; background:linear-gradient(180deg,#FFFFFF 0%,#E8E5DD 100%); color:#0A0A0B; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; box-shadow:inset 0 1px 0 rgba(255,255,255,0.9),0 2px 8px rgba(0,0,0,0.35),0 8px 22px rgba(0,0,0,0.25); }
+.gm-add:hover { filter:brightness(1.06); }
+.gm-ghost { padding:11px 18px; border:1px solid rgba(255,255,255,0.10); border-radius:12px; background:rgba(255,255,255,0.04); color:var(--text-primary); font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; }
+.gm-ghost:hover { background:rgba(255,255,255,0.07); }
+.nut-field { display:flex; flex-direction:column; gap:6px; min-width:0; }
+.nut-field label { font-size:10.5px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-tertiary); }
+.nut-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; }
+.chip-row { display:flex; flex-wrap:wrap; gap:8px; }
+.chip { padding:9px 14px; border-radius:999px; border:1px solid rgba(255,255,255,0.10); background:rgba(255,255,255,0.04); color:var(--text-secondary); font-family:inherit; font-size:12.5px; font-weight:600; cursor:pointer; white-space:nowrap; }
+.chip:hover { background:rgba(255,255,255,0.07); }
+.chip.active { background:rgba(107,227,164,0.14); border-color:rgba(107,227,164,0.45); color:var(--text-primary); }
+.nut-summary-line { font-size:13px; color:var(--text-secondary); line-height:1.6; }
+.nut-summary-line b { color:var(--text-primary); }
+/* ===== meal-planner specific ===== */
+.week-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+.day-card { background:rgba(255,255,255,0.035); border:1px solid rgba(255,255,255,0.06); border-radius:14px; padding:14px; cursor:pointer; transition:background .15s,border-color .15s; }
+.day-card:hover { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.14); }
+.day-card .dc-day { font-size:10px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-tertiary); }
+.day-card .dc-emoji { font-size:30px; margin:8px 0; }
+.day-card .dc-title { font-size:13.5px; font-weight:700; color:var(--text-primary); line-height:1.3; margin-bottom:6px; }
+.day-card .dc-meta { font-family:var(--font-mono); font-size:10.5px; color:var(--text-tertiary); display:flex; justify-content:space-between; }
+.day-card .dc-swap { margin-top:8px; width:100%; padding:6px; font-size:11px; }
+.recipe-modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(6px); z-index:200; align-items:center; justify-content:center; padding:20px; }
+.recipe-modal-bg.show { display:flex; }
+.recipe-modal { width:100%; max-width:560px; max-height:88vh; overflow-y:auto; background:#111113; border:1px solid rgba(255,255,255,0.10); border-radius:18px; padding:22px; }
+.recipe-modal-emoji { font-size:54px; text-align:center; margin-bottom:8px; }
+.recipe-modal h2 { margin:0 0 4px; font-size:20px; color:var(--text-primary); }
+.recipe-modal-tags { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0 14px; }
+.recipe-modal-tags span { font-size:10px; padding:4px 9px; border-radius:999px; background:rgba(255,255,255,0.06); color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.06em; }
+.recipe-ing-list,.recipe-step-list { margin:0; padding-left:18px; font-size:13.5px; line-height:1.7; color:var(--text-secondary); }
+.recipe-step-list li { margin-bottom:6px; }
+.aisle-group { margin-bottom:16px; }
+.aisle-group h4 { font-size:11px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-tertiary); margin:0 0 8px; }
+.badge { font-size:10px; padding:2px 7px; border-radius:999px; background:rgba(125,211,252,0.14); color:#7DD3FC; margin-left:8px; }
+.badge.warn { background:rgba(242,192,99,0.16); color:var(--warning); }
+@media print {
+  .topbar,.bottombar,.no-print { display:none !important; }
+  body { padding:0 !important; background:#fff !important; color:#000 !important; }
+  .gm-card { background:#fff !important; box-shadow:none !important; border:1px solid #999 !important; color:#000 !important; backdrop-filter:none !important; }
+  .gm-text,.dash-title,.stat-num,h2,h4 { color:#000 !important; -webkit-text-fill-color:#000 !important; }
+  .section:not(.print-target) { display:none !important; }
+}
+@media (max-width:480px) { body { padding:max(20px,env(safe-area-inset-top)) 14px 50px; } .gm-card { padding:16px; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1 class="dash-title">Meal Planner</h1>
+
+  <!-- ===== ONBOARDING / PROFILE ===== -->
+  <div class="section">
+    <div class="section-title">Household Profile</div>
+    <div class="gm-card" id="profileSummaryCard" style="display:none;">
+      <div class="nut-summary-line" id="profileSummaryLine"></div>
+      <div class="gm-input-wrap" style="border-top:0; margin-top:14px; padding-top:0;">
+        <button class="gm-ghost" id="editProfileBtn" type="button">Edit Profile</button>
+      </div>
+    </div>
+    <div class="gm-card" id="profileFormCard">
+      <div class="nut-grid">
+        <div class="nut-field"><label>People Eating</label>
+          <select class="nut-select" id="mPeople"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4+</option></select>
+        </div>
+        <div class="nut-field"><label>Weekly Budget (£)</label><input class="nut-num" id="mBudget" type="number" min="0" placeholder="80"></div>
+        <div class="nut-field"><label>Supermarket</label>
+          <select class="nut-select" id="mSupermarket">
+            <option value="aldi">Aldi</option><option value="lidl">Lidl</option>
+            <option value="tesco">Tesco</option><option value="asda">Asda</option>
+            <option value="sainsburys">Sainsbury's</option>
+          </select>
+        </div>
+        <div class="nut-field"><label>Max Cook Time</label>
+          <select class="nut-select" id="mCookTime"><option value="15">15 min</option><option value="30">30 min</option><option value="45">45 min</option><option value="999">60+ min</option></select>
+        </div>
+      </div>
+      <div class="nut-field" style="margin-top:14px;"><label>Dietary Restrictions</label>
+        <div class="chip-row" id="dietChips">
+          <button class="chip" data-v="vegan" type="button">Vegan</button>
+          <button class="chip" data-v="vegetarian" type="button">Vegetarian</button>
+          <button class="chip" data-v="pescatarian" type="button">Pescatarian</button>
+          <button class="chip" data-v="glutenFree" type="button">Gluten Free</button>
+          <button class="chip" data-v="dairyFree" type="button">Dairy Free</button>
+          <button class="chip" data-v="nutFree" type="button">Nut Free</button>
+          <button class="chip" data-v="halal" type="button">Halal</button>
+          <button class="chip" data-v="kosher" type="button">Kosher</button>
+        </div>
+      </div>
+      <div class="nut-field" style="margin-top:14px;"><label>Foods to Avoid (comma separated)</label>
+        <input class="nut-num" id="mAvoid" type="text" placeholder="e.g. mushrooms, olives">
+      </div>
+      <div class="nut-field" style="margin-top:14px;"><label>Meal Styles</label>
+        <div class="chip-row" id="styleChips">
+          <button class="chip" data-v="quick" type="button">Quick</button>
+          <button class="chip" data-v="healthy" type="button">Healthy</button>
+          <button class="chip" data-v="high_protein" type="button">High Protein</button>
+          <button class="chip" data-v="comfort" type="button">Comfort Food</button>
+          <button class="chip" data-v="family" type="button">Family</button>
+          <button class="chip" data-v="fakeaway" type="button">Fakeaway</button>
+          <button class="chip" data-v="budget" type="button">Budget</button>
+          <button class="chip" data-v="one_pot" type="button">One Pot</button>
+          <button class="chip" data-v="pasta" type="button">Pasta</button>
+          <button class="chip" data-v="mexican" type="button">Mexican</button>
+          <button class="chip" data-v="asian" type="button">Asian</button>
+          <button class="chip" data-v="italian" type="button">Italian</button>
+        </div>
+      </div>
+      <div class="nut-field" style="margin-top:14px;"><label>Appliances</label>
+        <div class="chip-row" id="applianceChips">
+          <button class="chip" data-v="air_fryer" type="button">Air Fryer</button>
+          <button class="chip" data-v="oven" type="button">Oven</button>
+          <button class="chip" data-v="hob" type="button">Hob</button>
+          <button class="chip" data-v="microwave" type="button">Microwave</button>
+          <button class="chip" data-v="slow_cooker" type="button">Slow Cooker</button>
+          <button class="chip" data-v="pressure_cooker" type="button">Pressure Cooker</button>
+          <button class="chip" data-v="bbq" type="button">BBQ</button>
+        </div>
+      </div>
+      <div class="gm-input-wrap"><button class="gm-add" id="saveProfileBtn" type="button">Save Profile</button></div>
+    </div>
+  </div>
+
+  <!-- ===== FAMILY PROFILES ===== -->
+  <div class="section">
+    <div class="section-title">Family Members</div>
+    <div class="gm-card">
+      <ul class="goal-list" id="familyList" style="list-style:none; margin:0; padding:0;"></ul>
+      <div class="gm-input-wrap">
+        <input class="gm-input" id="famName" type="text" placeholder="Name">
+        <input class="nut-num" id="famDiet" style="flex:0 0 130px;" placeholder="Diet (optional)">
+        <input class="nut-num" id="famDislikes" style="flex:1;" placeholder="Dislikes/allergies, comma sep">
+        <button class="gm-add" id="famAddBtn" type="button">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PANTRY ===== -->
+  <div class="section">
+    <div class="section-title">Pantry</div>
+    <div class="gm-card">
+      <ul class="goal-list" id="pantryList" style="list-style:none; margin:0; padding:0;"></ul>
+      <div class="gm-input-wrap">
+        <input class="gm-input" id="panName" type="text" placeholder="Ingredient">
+        <input class="nut-num" id="panQty" type="number" min="0" style="flex:0 0 90px;" placeholder="Qty">
+        <select class="nut-select" id="panUnit" style="flex:0 0 90px;"><option value="g">g</option><option value="ml">ml</option><option value="pcs">pcs</option><option value="can">can</option></select>
+        <button class="gm-add" id="panAddBtn" type="button">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== GENERATE / WEEK ===== -->
+  <div class="section">
+    <div class="section-title">This Week</div>
+    <div class="gm-card">
+      <div class="gm-header">
+        <div class="gm-header-left">
+          <div class="gm-eyebrow">Week Of</div>
+          <div class="gm-progress-row"><span class="gm-progress-num" id="weekOfLabel" style="font-size:20px;">—</span></div>
+        </div>
+        <span class="gm-streak" id="planHealthBadge">No plan yet</span>
+      </div>
+      <div class="gm-input-wrap" style="border-top:0; padding-top:0; margin-top:0;">
+        <button class="gm-add" id="generateBtn" type="button">Generate Week</button>
+        <button class="gm-ghost" id="preferFavBtn" type="button">Prefer Favorites</button>
+        <button class="gm-ghost no-print" id="printPlanBtn" type="button">Export / Print Week</button>
+      </div>
+      <div id="planHealthLines" style="margin-top:12px;"></div>
+      <div class="week-grid" id="weekGrid" style="margin-top:14px;"></div>
+    </div>
+  </div>
+
+  <!-- ===== PREP SCHEDULE ===== -->
+  <div class="section">
+    <div class="section-title">Sunday Prep List</div>
+    <div class="gm-card">
+      <ul class="goal-list" id="prepList" style="list-style:none; margin:0; padding:0;"></ul>
+    </div>
+  </div>
+
+  <!-- ===== SHOPPING LIST ===== -->
+  <div class="section print-target">
+    <div class="section-title">Shopping List</div>
+    <div class="gm-card">
+      <div class="gm-input-wrap no-print" style="border-top:0; padding-top:0; margin-top:0;">
+        <button class="gm-ghost" id="printShopBtn" type="button">Print Shopping List</button>
+      </div>
+      <div id="shoppingAisles"></div>
+      <div class="nut-summary-line" id="shoppingTotalLine" style="margin-top:14px;"></div>
+      <div id="pantryCoveredLine" class="nut-summary-line"></div>
+    </div>
+  </div>
+
+  <!-- ===== BUDGET / NUTRITION ===== -->
+  <div class="section">
+    <div class="section-title">Budget &amp; Nutrition</div>
+    <div class="gm-card">
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-num" id="bgTotal">£0</div><div class="stat-label">Est. Total</div></div>
+        <div class="stat"><div class="stat-num" id="bgBudget">£0</div><div class="stat-label">Budget</div></div>
+        <div class="stat"><div class="stat-num" id="bgAvgCal">0</div><div class="stat-label">Avg Cal/Day</div></div>
+        <div class="stat"><div class="stat-num" id="bgAvgProtein">0g</div><div class="stat-label">Avg Protein/Day</div></div>
+      </div>
+      <div class="nut-summary-line" id="supermarketCompareLine" style="margin-top:14px;"></div>
+    </div>
+  </div>
+
+  <!-- ===== FAVORITES ===== -->
+  <div class="section">
+    <div class="section-title">Favorites</div>
+    <div class="gm-card">
+      <div class="chip-row" id="favoritesChips"></div>
+      <div class="empty-state" id="favEmpty" style="display:none;">No favorites yet — open a recipe and tap ★ to save it.</div>
+    </div>
+  </div>
+
+  <!-- ===== HISTORY ===== -->
+  <div class="section">
+    <div class="section-title">History</div>
+    <div class="gm-card">
+      <ul class="goal-list" id="historyList" style="list-style:none; margin:0; padding:0;"></ul>
+    </div>
+  </div>
+
+</div><!-- /.page -->
+
+<!-- Recipe detail modal -->
+<div class="recipe-modal-bg" id="recipeModalBg">
+  <div class="recipe-modal" id="recipeModal"></div>
+</div>
+
+<script src="meals-data.js"></script>
+<script src="meals-app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (typeof initCloudSync !== 'function') return;
+  initCloudSync({
+    appKey: 'meals',
+    syncedKeys: ['meals:profile','meals:family','meals:pantry','meals:favorites','meals:plan','meals:history'],
+    onApplied: function () { window.dispatchEvent(new Event('storage')); }
+  });
+});
+</script>
+</body>
+</html>
